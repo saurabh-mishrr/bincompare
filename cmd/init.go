@@ -18,8 +18,6 @@ package cmd
 import (
 	"bincompare/cmd/helpers"
 	"fmt"
-	"os"
-	"path/filepath"
 
 	"github.com/spf13/cobra"
 )
@@ -37,23 +35,7 @@ var initCmd = &cobra.Command{
 func runInit(cmd *cobra.Command, args []string) {
 
 	fmt.Println("Initializing project.")
-	currentDir, err := os.Getwd()
-
-	err = filepath.Walk(currentDir, func(path string, info os.FileInfo, err error) error {
-		helpers.LogError(err)
-
-		if helpers.IsItDir(path) {
-			fmt.Println(helpers.GetDirName(path))
-		} else {
-			if helpers.IsItImageFile(path) {
-				fmt.Println(path)
-			}
-		}
-
-		return nil
-	})
-
-	helpers.LogError(err)
+	helpers.GetDirectoryPathContainsImages()
 	// os.Mkdir("./.bincompare", os.ModePerm)
 }
 
