@@ -1,8 +1,6 @@
 package helpers
 
 import (
-	"encoding/json"
-	"fmt"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -14,20 +12,6 @@ var CurrentDirAbsPath string
 var CurrentDirName string
 var err error
 var PathSeparator string
-
-type FileDiffLog struct {
-	Signature []string
-	Delta     []string
-}
-type FileLog struct {
-	Alive    []string
-	Dead     []string
-	FilePath FileDiffLog
-}
-type MainDir struct {
-	Project string
-	Tree    FileLog
-}
 
 /**
  * Assign value to global variable
@@ -87,50 +71,20 @@ func GetCurrentDirName(dirpath string) string {
  */
 func GetDirectoryPathContainsImages() {
 	//get current directory to initialize the project
+	imageFiles := GetAbsPathContainsImages()
 
-	//storing all the directory path who contains images
-	imageFiles := make([]string, 0)
-	err = filepath.Walk(CurrentDirAbsPath, func(path string, info os.FileInfo, err error) error {
-		LogError(err)
-		if !(IsItDir(path)) && IsItImageFile(path) {
-			imageFiles = append(imageFiles, path)
-		}
-		return nil
-	})
-
-	var liveFilePath = make([]string, 0)
+	var relativeFilePath = make([]string, 0)
 
 	for _, imageFilePath := range imageFiles {
-		s := strings.ReplaceAll(imageFilePath, CurrentDirAbsPath, BinCompareDirName+"/"+CurrentDirName)
-		imageRelPath := strings.ReplaceAll(imageFilePath, CurrentDirAbsPath, ".")
-		liveFilePath = append(liveFilePath, imageRelPath)
-		a := strings.Split(s, PathSeparator)
-		var subDirLen int = len(a) - 1
-		a[subDirLen] = ""
-		var clonedPath string = strings.Join(a, PathSeparator)
-		err = os.MkdirAll(clonedPath, os.ModePerm)
+		CloneToBinCompare(&imageFilePath)
+		CloneToSignature(&imageFilePath)
+		CloneToDelta(&imageFilePath)
+		CloneToDead(&imageFilePath)
+		relativeFilePath = append(relativeFilePath, GetRelativeImageFilePath(&imageFilePath))
 		LogError(err)
 	}
 
-	fileDiffLog := FileDiffLog{
-		Signature: []string{},
-		Delta:     []string{},
-	}
-
-	fileLog := FileLog{
-		Alive:    liveFilePath,
-		Dead:     []string{},
-		FilePath: fileDiffLog,
-	}
-
-	mainJsonNode := MainDir{
-		Project: CurrentDirName,
-		Tree:    fileLog,
-	}
-	var jsonData []byte
-	jsonData, err = json.MarshalIndent(mainJsonNode, "", "   ")
-	LogError(err)
-	fmt.Println(string(jsonData))
+	GenerateJson(relativeFilePath)
 
 	LogError(err)
 }
@@ -155,4 +109,47 @@ func IsWindows() bool {
 	}
 
 	return false
+}
+
+func CloneToBinCompare(dirpath *string) {
+	s := strings.ReplaceAll(*dirpath, CurrentDirAbsPath, BinCompareDirName+"/"+CurrentDirName)
+	MakeRecursiveDirctories(&s)
+}
+
+func CloneToSignature(dirpath *string) {
+	s := strings.ReplaceAll(*dirpath, CurrentDirAbsPath, BinCompareDirName+"/signatures/"+CurrentDirName)
+	MakeRecursiveDirctories(&s)
+}
+
+func CloneToDelta(dirpath *string) {
+	s := strings.ReplaceAll(*dirpath, CurrentDirAbsPath, BinCompareDirName+"/deltas/"+CurrentDirName)
+	MakeRecursiveDirctories(&s)
+}
+
+func CloneToDead(dirpath *string) {
+	s := strings.ReplaceAll(*dirpath, CurrentDirAbsPath, BinCompareDirName+"/deads/"+CurrentDirName)
+	MakeRecursiveDirctories(&s)
+}
+
+func GetAbsPathContainsImages() []string {
+	//storing all the directory path who contains images
+	imageFiles := make([]string, 0)
+	err = filepath.Walk(CurrentDirAbsPath, func(path string, info os.FileInfo, err error) error {
+		LogError(err)
+		if !(IsItDir(path)) && IsItImageFile(path) {
+			imageFiles = append(imageFiles, path)
+		}
+		return nil
+	})
+	LogError(err)
+	return imageFiles
+}
+
+func MakeRecursiveDirctories(dirpath *string) {
+	a := strings.Split(*dirpath, PathSeparator)
+	var subDirLen int = len(a) - 1
+	a[subDirLen] = ""
+	*dirpath = strings.Join(a, PathSeparator)
+	err = os.MkdirAll(*dirpath, os.ModePerm)
+	LogError(err)
 }
